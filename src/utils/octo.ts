@@ -53,9 +53,8 @@ export async function getPage(path: string) {
     }
 }
 
-export async function savePage(request: Request, path: string, content: string, sha: string) {
-
-    const session = await verifySession(request);
+export async function savePage(session: Awaited<ReturnType<typeof verifySession>>, path: string, content: string, sha: string) {
+ 
     const appOctokit = await getAppOctokit();
 
     return await appOctokit.rest.repos.createOrUpdateFileContents({

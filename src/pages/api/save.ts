@@ -1,5 +1,6 @@
 import type { APIRoute } from "astro";
-import { savePage } from "../../utils/octo";
+import { savePage, verifySession } from "../../utils/octo";
+import { checkRateLimit, RateLimitError } from "../../utils/rate-limit";
 
 export const POST: APIRoute = async ({ request }) => {
   let body: { path: string; content: string; sha: string };
@@ -23,8 +24,10 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   try {
-    const result = await savePage(request, path, content, sha);
-
+    const session = await verifySession(request);
+    await checkRateLimit(session.user.id, "/api/save", { max: 10, windowSec: 60 });
+    const result = await savePage(session, path, content, sha);
+    
     // Return the new sha so the client can track it for the next save
     const newSha = (result.data.content as any)?.sha ?? sha;
 
@@ -39,6 +42,13 @@ export const POST: APIRoute = async ({ request }) => {
         JSON.stringify({ error: "conflict: file was modified since last load" }),
         { status: 409, headers: { "Content-Type": "application/json" } }
       );
+    }
+
+    if (e instanceof RateLimitError) {
+        return new Response(
+            JSON.stringify({ error: `rate limit exceeded. try again in ${e.retryAfter}s` }),
+            { status: 429, headers: { "Content-Type": "application/json" } }
+        );
     }
 
     if (e?.message === "Unauthorized") {

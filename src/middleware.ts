@@ -2,7 +2,7 @@ import { auth } from "./utils/auth";
 import { defineMiddleware } from "astro:middleware";
 
 export const onRequest = defineMiddleware(async (context, next) => {
-    const isDashboard = context.url.pathname.startsWith("/dashboard");
+    const isDashboard = context.url.pathname.startsWith("/admin/account");
 
     if (isDashboard) {
         const session = await auth.api.getSession({
@@ -16,4 +16,4 @@ export const onRequest = defineMiddleware(async (context, next) => {
     }
 
     return next();
-    });
+});

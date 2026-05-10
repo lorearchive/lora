@@ -1,5 +1,3 @@
-// this file acts like a global state during compile time.
-
 export interface global {
     lastMod: Record<string, Date>
 }
@@ -7,7 +5,7 @@ export interface global {
 
 const global: global = {
     
-    lastMod: { } // last modified date saved into an object, the key is the page ID.
+    lastMod: { }, // last modified date saved into an object, the key is the page ID.
 } 
 
 export default global

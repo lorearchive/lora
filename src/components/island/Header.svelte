@@ -1,7 +1,8 @@
 <script  lang="ts">
-import * as NavigationMenu from "$lib/components/ui/navigation-menu/index.ts"
-let { session } = $props()
 
+import * as NavigationMenu from "$lib/components/ui/navigation-menu/index.ts"
+import { authClient } from "../../utils/auth-client";
+import { isSignedIn } from "../../store";
 
 </script>
 
@@ -21,7 +22,7 @@ let { session } = $props()
 
 
         <NavigationMenu.Item>
-            {#if !session}
+            {#if !$isSignedIn}
                 <NavigationMenu.Link href="/signin" class="a-no-style ">
                     Sign in
                 </NavigationMenu.Link>

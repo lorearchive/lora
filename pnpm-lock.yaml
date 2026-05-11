@@ -79,11 +79,11 @@ importers:
         specifier: ^5.2.8
         version: 5.2.8
       '@internationalized/date':
-        specifier: ^3.12.0
+        specifier: latest
         version: 3.12.0
       '@lucide/svelte':
-        specifier: ^1.8.0
-        version: 1.8.0(svelte@5.55.2)
+        specifier: ^0.577.0
+        version: 0.577.0(svelte@5.55.2)
       '@types/better-sqlite3':
         specifier: latest
         version: 7.6.13
@@ -636,8 +636,8 @@ packages:
   '@lezer/lr@1.4.8':
     resolution: {integrity: sha512-bPWa0Pgx69ylNlMlPvBPryqeLYQjyJjqPx+Aupm5zydLIF3NE+6MMLT8Yi23Bd9cif9VS00aUebn+6fDIGBcDA==}
 
-  '@lucide/svelte@1.8.0':
-    resolution: {integrity: sha512-+zYQUKqEOVP5lxbGmxL1OVgGMQtRK91eIJ0bR+3Cr1ts4oQEsQfxyzzd5X47psJlblAuGFrl2xm4YuATjR9oaA==}
+  '@lucide/svelte@0.577.0':
+    resolution: {integrity: sha512-0P6mkySd2MapIEgq08tADPmcN4DHndC/02PWwaLkOerXlx5Sv9aT4BxyXLIY+eccr0g/nEyCYiJesqS61YdBZQ==}
     peerDependencies:
       svelte: ^5
 
@@ -3595,7 +3595,7 @@ snapshots:
     dependencies:
       '@lezer/common': 1.5.1
 
-  '@lucide/svelte@1.8.0(svelte@5.55.2)':
+  '@lucide/svelte@0.577.0(svelte@5.55.2)':
     dependencies:
       svelte: 5.55.2
 

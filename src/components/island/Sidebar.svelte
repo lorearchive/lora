@@ -1,145 +1,188 @@
-<script lang="ts" module>
+<script lang="ts">
+import * as Collapsible from "$lib/components/ui/collapsible/index.js";
+import * as Sidebar from "$lib/components/ui/sidebar/index.js";
+import MinusIcon from "@lucide/svelte/icons/minus";
+import PlusIcon from "@lucide/svelte/icons/plus";
+import SidebarProvider from "$lib/components/ui/sidebar/sidebar-provider.svelte";
 
-    interface DirectoryNode {
-        name: string;
-        type: 'file' | 'directory';
-        path: string;
-        children: Map<string, DirectoryNode>;
-        fullPath?: string; // Original route path
-    }
 
-    function buildFilesystemFromRoutes(routes: string[]): DirectoryNode {
-        const root: DirectoryNode = {
-            name: 'root',
-            type: 'directory',
-            path: '',
-            children: new Map()
-        };
+const { routes = [], currentSlug = "", ...restProps } = $props<{
+    routes?: string[];
+    currentSlug?: string;
+}>();
 
-        for (const route of routes) {
 
-            const cleanPath = route.replace(/^\.+\//, '');
-            const segments = cleanPath.split('/').filter(segment => segment.length > 0).slice(2);
-            
-            let current = root;
-            
-            // Navigate/create path structure
-            for (let i = 0; i < segments.length; i++) {
-            const segment = segments[i];
+interface Node {
+    name: string;
+    type: "file" | "directory";
+    slug: string;
+    children: Node[];
+}
+
+function flatten(map: Map<string, { node: Node; map: Map<string, any> }>): Node[] {
+
+    return Array.from(map.values())
+        .sort((a, b) => {
+            if (a.node.type !== b.node.type) return a.node.type === "file" ? -1 : 1;
+            return a.node.name.localeCompare(b.node.name);
+        })
+        .map((entry) => {
+            entry.node.children = flatten(entry.map);
+            return entry.node;
+        });
+
+}
+
+function buildTree(routes: string[]): Node[] {
+    const root = new Map<string, { node: Node; map: Map<string, any> }>()
+
+    
+    for (const route of routes) {
+            const clean = route.replace(/^\.+\//, "").replace(/\.txt$/, "");
+        const segments = clean.split("/").filter(Boolean).slice(2); // strips `.wiki/wiki/`
+        let currentMap = root;
+
+        for (let i = 0; i < segments.length; i++) {
+            const seg = segments[i];
+            const slug = segments.slice(0, i + 1).join("/");
             const isFile = i === segments.length - 1;
-            const currentPath = segments.slice(0, i + 1).join('/');
             
-            if (!current.children.has(segment)) {
-                current.children.set(segment, {
-                    name: isFile ? segment.replace(/\.txt$/, '') : segment,
-                    type: isFile ? 'file' : 'directory',
-                    path: isFile ? currentPath.replace(/\.txt$/, '') : currentPath,
-                    children: new Map(),
-                    fullPath: isFile ? route : undefined
+            if (!currentMap.has(seg)) {
+                currentMap.set(seg, {
+                node: {
+                    name: seg,
+                    type: isFile ? "file" : "directory",
+                    slug,
+                    children: [],
+                },
+                map: new Map(),
                 });
             }
-            
-            current = current.children.get(segment)!;
+
+            if (!isFile) {
+                currentMap = currentMap.get(seg)!.map;
             }
         }
-        
-        return root;
+    }   
+
+    return flatten(root)
+
+}
+
+
+
+const tree = $derived(buildTree(routes));
+
+
+function hasActive(node: Node): boolean {
+    if (node.type === "file" && node.slug === currentSlug) return true;
+    if (node.type === "directory") return node.children.some(hasActive);
+    return false;
+}
+
+const openPaths = $derived.by(() => {
+    const set = new Set<string>();
+    function walk(nodes: Node[]) {
+        for (const n of nodes) {
+            if (n.type === "directory" && n.children.some(hasActive)) {
+                set.add(n.slug);
+                walk(n.children);
+            }
+        }
     }
+    walk(tree);
+    return set;
+});
+
+function isOpen(slug: string) {
+    return openPaths.has(slug);
+}
 </script>
 
-<script lang="ts">
-    const { routes } = $props<{ routes: string[] }>();
-    let tree: DirectoryNode | null = $state(null);
 
-    $effect(() => {
-        if (routes && routes.length > 0) {
-            tree = buildFilesystemFromRoutes(routes);
-        } else {
-            tree = null;
-        }
-    });
+{#snippet renderTopLevel(node: Node)}
+    {#if node.type === "directory"}
+        <Collapsible.Root open={isOpen(node.slug)} class="group/collapsible">
+            <Sidebar.MenuItem>
 
+                <Collapsible.Trigger>
+                    {#snippet child({ props })}
+                        <Sidebar.MenuButton {...props}>
+                            {node.name}
+                            <PlusIcon class="ms-auto group-data-[state=open]/collapsible:hidden" />
+                            <MinusIcon class="ms-auto group-data-[state=closed]/collapsible:hidden" />
+                        </Sidebar.MenuButton>
+                    {/snippet}
+                </Collapsible.Trigger>
 
-</script>
+                <Collapsible.Content>
+                    <Sidebar.MenuSub>
+                        {#each node.children as child (child.slug)}
+                            {#if child.type === "directory"}
+                                <Collapsible.Root open={isOpen(child.slug)} class="group/collapsible">
+                                    <Sidebar.MenuSubItem>
+                                        <Collapsible.Trigger>
+                                            {#snippet child({ props })}
+                                                    <Sidebar.MenuSubButton {...props}>
+                                                    {child.name}
+                                                    <PlusIcon class="ms-auto group-data-[state=open]/collapsible:hidden" />
+                                                    <MinusIcon class="ms-auto group-data-[state=closed]/collapsible:hidden" />
+                                                    </Sidebar.MenuSubButton>
+                                            {/snippet}
+                                        </Collapsible.Trigger>
 
-{#snippet treeToHTMLSnippet(node: DirectoryNode, isRoot: boolean = true)}
+                                        <Collapsible.Content>
+                                            <Sidebar.MenuSub>
+                                                {#each child.children as grandchild (grandchild.slug)}
+                                                    <Sidebar.MenuSubItem>
+                                                        <Sidebar.MenuSubButton isActive={grandchild.slug === currentSlug}>
+                                                            {#snippet child({ props })}
+                                                                <a href={"/wiki/" + grandchild.slug} {...props}>{grandchild.name}</a>
+                                                            {/snippet}
+                                                        </Sidebar.MenuSubButton>
+                                                    </Sidebar.MenuSubItem>
+                                                {/each}
 
-    {#if isRoot && node.children.size === 0}
-        <ul><li class="empty">No files found</li></ul>
-    
+                                            </Sidebar.MenuSub>
+                                        </Collapsible.Content>
+                                    </Sidebar.MenuSubItem>
+                                </Collapsible.Root>
+                            {:else}
+                                <Sidebar.MenuSubItem>
+                                    <Sidebar.MenuSubButton isActive={child.slug === currentSlug}>
+                                        {#snippet child({ props })}
+                                            <a href={"/wiki/" + child.slug} {...props}>{child.name}</a>
+                                        {/snippet}
+                                    </Sidebar.MenuSubButton>
+                                </Sidebar.MenuSubItem>
+                            {/if}
+                        {/each}
+                    </Sidebar.MenuSub>
+                </Collapsible.Content>
+            </Sidebar.MenuItem>
+        </Collapsible.Root>
     {:else}
-    
-        {@const children = Array.from(node.children.values())
-            .sort((a, b) => {
-            // Files first, then directories, both alphabetically
-                if (a.type !== b.type) {
-                    return a.type === 'file' ? -1 : 1;
-                }
-                return a.name.localeCompare(b.name);
-            })
-        }
-    
-        {#if children.length > 0}
-            <ul>
-                {#each children as child}
-                    <li class="{child.type}" data-path="{child.path}">
-                        <a href={`/wiki/${child.path}`} class="a-no-style">
-                             <span class="name">
-                                {child.name}
-                            </span>
-                        </a>
-                       
-                        
-                        {#if child.type === 'directory' && child.children.size > 0}
-                            {@render treeToHTMLSnippet(child, false)}
-                        {/if}
-                    </li>
-                {/each}
-            </ul>
-        {/if}
+        <Sidebar.MenuItem>
+            <Sidebar.MenuButton isActive={node.slug === currentSlug}>
+                {#snippet child({ props })}
+                    <a href={"/wiki/" + node.slug} {...props}>{node.name}</a>
+                {/snippet}
+            </Sidebar.MenuButton>
+        </Sidebar.MenuItem>
     {/if}
 {/snippet}
 
-{#if tree}
-    {@render treeToHTMLSnippet(tree)}
-{:else}
-    <p>No routes provided</p>
-{/if}
 
-<style>
-    ul {
-        list-style: none;
-        padding-left: 1.5rem;
-        margin: 0.5rem 0;
-    }
-
-    li {
-        margin: 0.25rem 0;
-        cursor: pointer;
-        padding: 0.25rem;
-        border-radius: 4px;
-    }
-    
-    li:hover {
-        background-color: #f5f5f5;
-    }
-    
-    li.directory {
-        font-weight: 500;
-    }
-    
-    li.file {
-        color: #666;
-    }
-    
-    .name {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    
-    .empty {
-        color: #999;
-        font-style: italic;
-    }
-</style>
+<SidebarProvider>
+ <Sidebar.Root {...restProps}>
+<Sidebar.Content>
+    <Sidebar.Group>
+        <Sidebar.Menu>
+            {#each tree as node (node.slug)}
+                {@render renderTopLevel(node)}
+            {/each}
+        </Sidebar.Menu>
+    </Sidebar.Group>
+</Sidebar.Content>
+</Sidebar.Root>
+</SidebarProvider>

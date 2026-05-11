@@ -8,7 +8,7 @@ import '../styles/typography.css'
 import '../styles/components.css'
 import Tooltips from "../scripts/tooltips.astro"
 import Sidebar from "../components/island/Sidebar.svelte"
-
+import SidebarProvider from "$lib/components/ui/sidebar/sidebar-provider.svelte";
 ---
 
 <!DOCTYPE html>
@@ -30,8 +30,10 @@ import Sidebar from "../components/island/Sidebar.svelte"
         <div class={aside ? "page-grid" : "full-width-wrapper"}>
             {aside && (
                 <aside id="sidebar" class="sidebar">
-                    <Sidebar client:load routes={routes} />
-                </aside>
+                <SidebarProvider>
+                    <Sidebar client:load transition:persist routes={routes} currentSlug={Astro.url.pathname.replace(/^\/wiki\//, "")} />
+                </SidebarProvider>
+                                </aside>
             )}
 
             <div class="main-content">
